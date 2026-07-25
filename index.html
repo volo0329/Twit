@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Jakae Twitter Archive</title>
-    <!-- Tailwind CSS CDN -->
+    <title>Jakae Archive</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { background-color: #000; color: #e7e9ea; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
@@ -12,14 +11,25 @@
 </head>
 <body class="min-h-screen flex justify-center">
 
-    <div class="w-full max-w-xl border-x border-neutral-800 min-h-screen flex flex-col">
+    <!-- 비밀번호 잠금 모달 -->
+    <div id="lockModal" class="fixed inset-0 bg-black z-50 flex items-center justify-center p-4">
+        <div class="bg-neutral-900 border border-neutral-800 p-6 rounded-2xl w-full max-w-sm flex flex-col gap-4">
+            <h2 class="text-lg font-bold text-center">🔒 잠금 화면</h2>
+            <p class="text-xs text-neutral-400 text-center">비밀번호를 입력해야 아카이브에 입장할 수 있어.</p>
+            <input type="password" id="lockPassword" placeholder="비밀번호 입력" class="bg-black border border-neutral-800 rounded p-2 text-sm focus:outline-none focus:border-sky-500 text-center" onkeydown="if(event.key==='Enter') checkPassword()">
+            <button onclick="checkPassword()" class="bg-sky-500 hover:bg-sky-400 text-white font-bold py-2 rounded-lg text-sm transition">입장하기</button>
+        </div>
+    </div>
+
+    <div class="w-full max-w-xl border-x border-neutral-800 min-h-screen flex flex-col hidden" id="mainApp">
         <!-- 헤더 -->
         <header class="sticky top-0 bg-black/80 backdrop-blur-md border-b border-neutral-800 p-4 flex justify-between items-center z-10">
             <h1 class="text-xl font-bold">역극 아카이브</h1>
             <div class="flex gap-2">
-                <button onclick="exportData()" class="bg-neutral-800 hover:bg-neutral-700 text-xs px-3 py-1.5 rounded-full font-bold transition">백업(JSON)</button>
+                <button onclick="openSettings()" class="bg-neutral-800 hover:bg-neutral-700 text-xs px-3 py-1.5 rounded-full font-bold transition">계정관리</button>
+                <button onclick="exportData()" class="bg-neutral-800 hover:bg-neutral-700 text-xs px-3 py-1.5 rounded-full font-bold transition">백업</button>
                 <label class="bg-neutral-800 hover:bg-neutral-700 text-xs px-3 py-1.5 rounded-full font-bold cursor-pointer transition">
-                    불러오기 <input type="file" id="importFile" class="hidden" accept=".json" onchange="importData(event)">
+                    복구 <input type="file" id="importFile" class="hidden" accept=".json" onchange="importData(event)">
                 </label>
             </div>
         </header>
@@ -27,15 +37,26 @@
         <!-- 트윗 작성 박스 -->
         <div class="border-b border-neutral-800 p-4">
             <div class="flex gap-3">
-                <div class="w-10 h-10 rounded-full bg-neutral-700 flex items-center justify-center font-bold text-lg flex-shrink-0" id="previewAvatar">💬</div>
+                <div id="currentAvatarBox" class="w-10 h-10 rounded-full bg-neutral-800 flex items-center justify-center font-bold text-sm flex-shrink-0 overflow-hidden">👤</div>
                 <div class="flex-1 flex flex-col gap-2">
-                    <div class="flex gap-2">
-                        <input type="text" id="inputName" placeholder="이름 (닉네임)" class="bg-black border border-neutral-800 rounded px-2 py-1 text-sm w-1/2 focus:outline-none focus:border-sky-500">
-                        <input type="text" id="inputId" placeholder="@handle" class="bg-black border border-neutral-800 rounded px-2 py-1 text-sm w-1/2 focus:outline-none focus:border-sky-500">
+                    <!-- 계정 선택 팔레트 -->
+                    <div class="flex justify-between items-center bg-neutral-900 border border-neutral-800 rounded px-2 py-1">
+                        <span class="text-xs text-neutral-400">발신 계정:</span>
+                        <select id="accountSelector" onchange="changeActiveAccount()" class="bg-transparent text-xs font-bold text-sky-400 focus:outline-none cursor-pointer">
+                            <!-- JS로 동적 생성 -->
+                        </select>
                     </div>
-                    <textarea id="inputContent" rows="3" placeholder="무슨 일이 일어나고 있나요?" class="bg-black border border-neutral-800 rounded p-2 text-sm focus:outline-none focus:border-sky-500 resize-none"></textarea>
+
+                    <!-- 인용/답글 대상 표시바 (있을 경우) -->
+                    <div id="replyTargetBox" class="hidden text-xs bg-neutral-900 border border-neutral-800 rounded p-2 flex justify-between items-center text-neutral-400">
+                        <span id="replyTargetText">답글/인용 중...</span>
+                        <button onclick="cancelReply()" class="text-red-400 hover:text-red-300 font-bold">취소</button>
+                    </div>
+
+                    <textarea id="inputContent" rows="3" placeholder="무슨 일이 일어나고 있나요? (@아이디로 멘션 가능)" class="bg-black border border-neutral-800 rounded p-2 text-sm focus:outline-none focus:border-sky-500 resize-none"></textarea>
+                    
                     <div class="flex justify-between items-center mt-1">
-                        <input type="text" id="inputAvatarUrl" placeholder="프프로필 이미지 URL (선택)" class="bg-black border border-neutral-800 rounded px-2 py-1 text-xs w-1/2 focus:outline-none focus:border-sky-500">
+                        <input type="text" id="inputImageUrl" placeholder="이미지 URL 첨부 (선택)" class="bg-black border border-neutral-800 rounded px-2 py-1 text-xs w-1/2 focus:outline-none focus:border-sky-500">
                         <button onclick="addTweet()" class="bg-sky-500 hover:bg-sky-400 text-white font-bold px-4 py-1.5 rounded-full text-sm transition">게시하기</button>
                     </div>
                 </div>
@@ -44,12 +65,85 @@
 
         <!-- 타임라인 피드 -->
         <div id="timeline" class="flex-1 divide-y divide-neutral-800">
-            <!-- 트윗들이 여기에 렌더링됨 -->
+            <!-- 트윗 목록 -->
+        </div>
+    </div>
+
+    <!-- 계정 관리 모달 -->
+    <div id="settingsModal" class="fixed inset-0 bg-black/80 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-neutral-900 border border-neutral-800 p-6 rounded-2xl w-full max-w-md flex flex-col gap-4 max-h-[90vh] overflow-y-auto">
+            <h2 class="text-lg font-bold">자캐(계정) 팔레트 관리</h2>
+            <div id="accountList" class="flex flex-col gap-2">
+                <!-- 등록된 계정 리스트 -->
+            </div>
+            <div class="border-t border-neutral-800 pt-3 flex flex-col gap-2">
+                <h3 class="text-sm font-bold text-neutral-300">새 계정 추가</h3>
+                <input type="text" id="newAccName" placeholder="이름 (닉네임)" class="bg-black border border-neutral-800 rounded p-2 text-xs focus:outline-none">
+                <input type="text" id="newAccHandle" placeholder="아이디 (@handle)" class="bg-black border border-neutral-800 rounded p-2 text-xs focus:outline-none">
+                <input type="text" id="newAccAvatar" placeholder="프로필 이미지 URL" class="bg-black border border-neutral-800 rounded p-2 text-xs focus:outline-none">
+                <button onclick="addAccount()" class="bg-neutral-800 hover:bg-neutral-700 text-white font-bold py-2 rounded text-xs transition">계정 추가하기</button>
+            </div>
+            <button onclick="closeSettings()" class="bg-sky-500 hover:bg-sky-400 text-white font-bold py-2 rounded-lg text-sm transition mt-2">닫기</button>
         </div>
     </div>
 
     <script>
+        // 초기 데이터 로드
+        let accounts = JSON.parse(localStorage.getItem('jakae_accounts')) || [
+            { name: "기본 자캐", handle: "@my_oc", avatar: "" }
+        ];
         let tweets = JSON.parse(localStorage.getItem('jakae_tweets')) || [];
+        let activeAccountIndex = parseInt(localStorage.getItem('jakae_active_idx')) || 0;
+        let replyTargetId = null; // 인용/답글 대상 트윗 ID
+        
+        // 비밀번호 설정 (원하는 비밀번호로 변경 가능, 기본은 '1234')
+        const sitePassword = localStorage.getItem('jakae_site_pw') || '1234';
+        if(!localStorage.getItem('jakae_site_pw')) {
+            localStorage.setItem('jakae_site_pw', '1234');
+        }
+
+        function checkPassword() {
+            const inputPw = document.getElementById('lockPassword').value;
+            if (inputPw === localStorage.getItem('jakae_site_pw')) {
+                document.getElementById('lockModal').classList.add('hidden');
+                document.getElementById('mainApp').classList.remove('hidden');
+                initApp();
+            } else {
+                alert('비밀번호가 틀렸어...!');
+            }
+        }
+
+        function initApp() {
+            renderAccountSelector();
+            renderTimeline();
+        }
+
+        function renderAccountSelector() {
+            const selector = document.getElementById('accountSelector');
+            selector.innerHTML = '';
+            accounts.forEach((acc, idx) => {
+                const opt = document.createElement('option');
+                opt.value = idx;
+                opt.textContent = `${acc.name} (${acc.handle})`;
+                if (idx === activeAccountIndex) opt.selected = true;
+                selector.appendChild(opt);
+            });
+
+            // 작성창 아바타 업데이트
+            const avatarBox = document.getElementById('currentAvatarBox');
+            const activeAcc = accounts[activeAccountIndex];
+            if (activeAcc && activeAcc.avatar) {
+                avatarBox.innerHTML = `<img src="${activeAcc.avatar}" class="w-full h-full object-cover">`;
+            } else {
+                avatarBox.innerHTML = '👤';
+            }
+        }
+
+        function changeActiveAccount() {
+            activeAccountIndex = document.getElementById('accountSelector').value;
+            localStorage.setItem('jakae_active_idx', activeAccountIndex);
+            renderAccountSelector();
+        }
 
         function renderTimeline() {
             const timeline = document.getElementById('timeline');
@@ -60,7 +154,7 @@
                 return;
             }
 
-            tweets.forEach((tweet, index) => {
+            tweets.forEach((tweet) => {
                 const div = document.createElement('div');
                 div.className = 'p-4 hover:bg-neutral-950/50 transition flex gap-3 relative group';
                 
@@ -69,31 +163,55 @@
                     avatarHtml = `<div class="w-10 h-10 rounded-full bg-neutral-800 flex-shrink-0 overflow-hidden"><img src="${tweet.avatar}" class="w-full h-full object-cover"></div>`;
                 }
 
+                let imageHtml = '';
+                if (tweet.image) {
+                    imageHtml = `<div class="mt-2 rounded-xl overflow-hidden border border-neutral-800 max-h-80"><img src="${tweet.image}" class="w-full object-cover"></div>`;
+                }
+
+                let replyIndicator = '';
+                if (tweet.replyTo) {
+                    const parent = tweets.find(t => t.id === tweet.replyTo);
+                    if (parent) {
+                        replyIndicator = `<div class="text-xs text-neutral-500 mb-1">💬 <span class="text-sky-400">${escapeHtml(parent.handle)}</span>님의 트윗에 남긴 답글</div>`;
+                    }
+                }
+
+                // 멘션(@아이디) 파란색 스타일링 및 HTML 이스케이프 처리 후 변환
+                let formattedContent = escapeHtml(tweet.content);
+                formattedContent = formattedContent.replace(/(@[a-zA-Z0-9_가-힣]+)/g, '<span class="text-sky-400 font-medium">$1</span>');
+
                 div.innerHTML = `
                     ${avatarHtml}
                     <div class="flex-1 min-w-0">
+                        ${replyIndicator}
                         <div class="flex items-center gap-1.5">
                             <span class="font-bold text-sm truncate">${escapeHtml(tweet.name)}</span>
                             <span class="text-neutral-500 text-xs truncate">${escapeHtml(tweet.handle)}</span>
                             <span class="text-neutral-600 text-xs">·</span>
                             <span class="text-neutral-500 text-xs">${tweet.date}</span>
                         </div>
-                        <div class="mt-1 text-sm whitespace-pre-wrap break-words leading-relaxed">${escapeHtml(tweet.content)}</div>
+                        <div class="mt-1 text-sm whitespace-pre-wrap break-words leading-relaxed">${formattedContent}</div>
+                        ${imageHtml}
+                        <div class="flex gap-6 mt-3 text-neutral-500 text-xs">
+                            <button onclick="setReplyTarget('${tweet.id}', '${tweet.handle}')" class="hover:text-sky-400 transition flex items-center gap-1">💬 답글/인용</button>
+                            <button onclick="toggleLike('${tweet.id}')" class="hover:text-pink-500 transition flex items-center gap-1 ${tweet.liked ? 'text-pink-500 font-bold' : ''}">
+                                <span>♥</span> <span>${tweet.likes || 0}</span>
+                            </button>
+                        </div>
                     </div>
-                    <button onclick="deleteTweet(${index})" class="absolute top-3 right-3 text-neutral-600 hover:text-red-500 opacity-0 group-hover:opacity-100 transition text-xs">삭제</button>
+                    <button onclick="deleteTweet('${tweet.id}')" class="absolute top-3 right-3 text-neutral-600 hover:text-red-500 opacity-0 group-hover:opacity-100 transition text-xs">삭제</button>
                 `;
                 timeline.appendChild(div);
             });
         }
 
         function addTweet() {
-            const name = document.getElementById('inputName').value.trim();
-            const handle = document.getElementById('inputId').value.trim();
             const content = document.getElementById('inputContent').value.trim();
-            const avatar = document.getElementById('inputAvatarUrl').value.trim();
+            const image = document.getElementById('inputImageUrl').value.trim();
+            const activeAcc = accounts[activeAccountIndex];
 
-            if (!name || !content) {
-                alert('이름이랑 내용은 적어줘야지...!');
+            if (!content && !image) {
+                alert('내용이라도 적어줘야지...!');
                 return;
             }
 
@@ -101,24 +219,57 @@
             const dateStr = `${now.getMonth() + 1}월 ${now.getDate()}일`;
 
             const newTweet = {
-                name,
-                handle: handle ? (handle.startsWith('@') ? handle : '@' + handle) : '@unknown',
-                content,
-                avatar,
+                id: 't_' + Date.now() + Math.random().toString(36.substring(2, 5)),
+                name: activeAcc.name,
+                handle: activeAcc.handle,
+                avatar: activeAcc.avatar,
+                content: content,
+                image: image,
                 date: dateStr,
+                replyTo: replyTargetId,
+                likes: 0,
+                liked: false,
                 timestamp: now.getTime()
             };
 
-            tweets.unshift(newTweet); // 최신글이 위로
+            tweets.unshift(newTweet);
             saveAndRender();
 
-            // 입력창 초기화 (내용만)
+            // 초기화
             document.getElementById('inputContent').value = '';
+            document.getElementById('inputImageUrl').value = '';
+            cancelReply();
         }
 
-        function deleteTweet(index) {
+        function setReplyTarget(id, handle) {
+            replyTargetId = id;
+            document.getElementById('replyTargetBox').classList.remove('hidden');
+            document.getElementById('replyTargetText').textContent = `${handle}님의 트윗에 이어 쓰는 중...`;
+            document.getElementById('inputContent').focus();
+        }
+
+        function cancelReply() {
+            replyTargetId = null;
+            document.getElementById('replyTargetBox').classList.add('hidden');
+        }
+
+        function toggleLike(id) {
+            const tweet = tweets.find(t => t.id === id);
+            if (tweet) {
+                if (tweet.liked) {
+                    tweet.likes--;
+                    tweet.liked = false;
+                } else {
+                    tweet.likes++;
+                    tweet.liked = true;
+                }
+                saveAndRender();
+            }
+        }
+
+        function deleteTweet(id) {
             if (confirm('이 로그를 지울 거야...?')) {
-                tweets.splice(index, 1);
+                tweets = tweets.filter(t => t.id !== id);
                 saveAndRender();
             }
         }
@@ -128,11 +279,81 @@
             renderTimeline();
         }
 
+        // 계정 관리 관련 함수들
+        function openSettings() {
+            renderAccountList();
+            document.getElementById('settingsModal').classList.remove('hidden');
+        }
+
+        function closeSettings() {
+            document.getElementById('settingsModal').classList.add('hidden');
+        }
+
+        function renderAccountList() {
+            const list = document.getElementById('accountList');
+            list.innerHTML = '';
+            accounts.forEach((acc, idx) => {
+                const div = document.createElement('div');
+                div.className = 'flex justify-between items-center bg-black border border-neutral-800 p-2 rounded text-xs';
+                div.innerHTML = `
+                    <div class="flex items-center gap-2">
+                        <div class="w-7 h-7 rounded-full bg-neutral-800 overflow-hidden flex items-center justify-center font-bold">
+                            ${acc.avatar ? `<img src="${acc.avatar}" class="w-full h-full object-cover">` : '👤'}
+                        </div>
+                        <div>
+                            <span class="font-bold text-white">${escapeHtml(acc.name)}</span>
+                            <span class="text-neutral-500 ml-1">${escapeHtml(acc.handle)}</span>
+                        </div>
+                    </div>
+                    ${accounts.length > 1 ? `<button onclick="deleteAccount(${idx})" class="text-red-500 hover:text-red-400 font-bold">삭제</button>` : ''}
+                `;
+                list.appendChild(div);
+            });
+        }
+
+        function addAccount() {
+            const name = document.getElementById('newAccName').value.trim();
+            const handle = document.getElementById('newAccHandle').value.trim();
+            const avatar = document.getElementById('newAccAvatar').value.trim();
+
+            if (!name || !handle) {
+                alert('계정 이름이랑 아이디는 적어줘!');
+                return;
+            }
+
+            accounts.push({
+                name,
+                handle: handle.startsWith('@') ? handle : '@' + handle,
+                avatar
+            });
+
+            localStorage.setItem('jakae_accounts', JSON.stringify(accounts));
+            document.getElementById('newAccName').value = '';
+            document.getElementById('newAccHandle').value = '';
+            document.getElementById('newAccAvatar').value = '';
+            renderAccountList();
+            renderAccountSelector();
+        }
+
+        function deleteAccount(idx) {
+            if (accounts.length <= 1) {
+                alert('계정은 최소 1개는 있어야 해!');
+                return;
+            }
+            accounts.splice(idx, 1);
+            if (activeAccountIndex >= accounts.length) activeAccountIndex = accounts.length - 1;
+            localStorage.setItem('jakae_accounts', JSON.stringify(accounts));
+            localStorage.setItem('jakae_active_idx', activeAccountIndex);
+            renderAccountList();
+            renderAccountSelector();
+        }
+
         function exportData() {
-            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(tweets, null, 2));
+            const backupObj = { accounts, tweets };
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupObj, null, 2));
             const dlAnchorElem = document.createElement('a');
             dlAnchorElem.setAttribute("href", dataStr);
-            dlAnchorElem.setAttribute("download", `jakae_archive_${Date.now()}.json`);
+            dlAnchorElem.setAttribute("download", `jakae_archive_full_${Date.now()}.json`);
             dlAnchorElem.click();
         }
 
@@ -144,21 +365,26 @@
             reader.onload = function(e) {
                 try {
                     const imported = JSON.parse(e.target.result);
-                    if (Array.isArray(imported)) {
-                        tweets = imported;
+                    if (imported.tweets && imported.accounts) {
+                        tweets = imported.tweets;
+                        accounts = imported.accounts;
+                        activeAccountIndex = 0;
+                        localStorage.setItem('jakae_accounts', JSON.stringify(accounts));
                         saveAndRender();
-                        alert('백업 파일 불러오기 성공!');
+                        renderAccountSelector();
+                        alert('백업 데이터 복구 완료!');
                     } else {
-                        alert('파일 형식이 잘못된 것 같은데... 확인해봐.');
+                        alert('올바른 백업 파일 형식이 아닌 것 같아.');
                     }
                 } catch (err) {
-                    alert('JSON 파일을 읽는 중에 에러가 났어.');
+                    alert('파일을 읽는 중에 에러가 났어.');
                 }
             };
             reader.readAsText(file);
         }
 
         function escapeHtml(text) {
+            if (!text) return '';
             return text
                 .replace(/&/g, "&amp;")
                 .replace(/</g, "&lt;")
@@ -166,10 +392,6 @@
                 .replace(/"/g, "&quot;")
                 .replace(/'/g, "&#039;");
         }
-
-        // 초기 렌더링
-        renderInnerHTML = renderTimeline();
-        renderTimeline();
     </script>
 </body>
 </html>
